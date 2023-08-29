@@ -63,23 +63,23 @@ class EncryptCommand extends Command
         $updatedRows = 0;
 
         $newClass = (new $modelClass());
+        $databaseTable = sprintf('%s.%s', $newClass->getConnection()->getDatabaseName(), $newClass->getTable());
 
-        $this->getOutput()->progressStart(DB::table($newClass->getTable())->count());
+        $this->getOutput()->progressStart(DB::table($databaseTable)->count());
         $sortDirection = $this->argument('sortDirection');
 
-        DB::table($newClass->getTable())
+        DB::table($databaseTable)
             ->orderBy((new $modelClass())
                 ->getKeyName(), $sortDirection)
-            ->each(function (object $model) use ($modelClass, $newClass, &$updatedRows) {
-                $table_name = $this->argument('tablename') ?: $newClass->getTable();
+            ->each(function (object $model) use ($modelClass, $newClass, $databaseTable, &$updatedRows) {
                 $model = (array)$model;
 
-                $oldRow = new EncryptedRow(app(CipherSweetEngine::class), $table_name);
+                $oldRow = new EncryptedRow(app(CipherSweetEngine::class), $databaseTable);
                 $modelClass::configureCipherSweet($oldRow);
 
                 $newRow = new EncryptedRow(
                     new CipherSweetEngine(new StringProvider($this->argument('newKey')), $oldRow->getBackend()),
-                    $newClass->getTable(),
+                    $databaseTable,
                 );
                 $modelClass::configureCipherSweet($newRow);
 
@@ -91,7 +91,7 @@ class EncryptCommand extends Command
                         [$ciphertext, $indices] = $newRow->prepareRowForStorage($model);
                     }
 
-                    DB::table($newClass->getTable())
+                    DB::table($databaseTable)
                         ->where($newClass->getKeyName(), $model[$newClass->getKeyName()])
                         ->update(Arr::only($ciphertext, $newRow->listEncryptedFields()));
 

@@ -19,7 +19,7 @@ trait UsesCipherSweet
 
         static::$cipherSweetEncryptedRow = new EncryptedRow(
             app(CipherSweetEngine::class),
-            (new static())->getTable()
+            sprintf('%s.%s', (new static())->getConnection()->getDatabaseName(), (new static())->getTable())
         );
 
         static::configureCipherSweet(static::$cipherSweetEncryptedRow);
