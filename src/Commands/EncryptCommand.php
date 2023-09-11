@@ -63,15 +63,17 @@ class EncryptCommand extends Command
         $updatedRows = 0;
 
         $newClass = (new $modelClass());
+        $dataBaseConnection = $newClass->getConnection()->getName();
         $databaseTable = sprintf('%s.%s', $newClass->getConnection()->getDatabaseName(), $newClass->getTable());
 
-        $this->getOutput()->progressStart(DB::table($databaseTable)->count());
+        $this->getOutput()->progressStart(DB::connection($dataBaseConnection)->table($databaseTable)->count());
         $sortDirection = $this->argument('sortDirection');
 
-        DB::table($databaseTable)
+        DB::connection($dataBaseConnection)
+            ->table($databaseTable)
             ->orderBy((new $modelClass())
                 ->getKeyName(), $sortDirection)
-            ->each(function (object $model) use ($modelClass, $newClass, $databaseTable, &$updatedRows) {
+            ->each(function (object $model) use ($modelClass, $newClass, $dataBaseConnection, $databaseTable, &$updatedRows) {
                 $model = (array)$model;
 
                 $oldRow = new EncryptedRow(app(CipherSweetEngine::class), $databaseTable);
@@ -91,12 +93,13 @@ class EncryptCommand extends Command
                         [$ciphertext, $indices] = $newRow->prepareRowForStorage($model);
                     }
 
-                    DB::table($databaseTable)
+                    DB::connection($dataBaseConnection)
+                        ->table($databaseTable)
                         ->where($newClass->getKeyName(), $model[$newClass->getKeyName()])
                         ->update(Arr::only($ciphertext, $newRow->listEncryptedFields()));
 
                     foreach ($indices as $name => $value) {
-                        DB::table('blind_indexes')->updateOrInsert([
+                        DB::connection($dataBaseConnection)->table('blind_indexes')->updateOrInsert([
                             'indexable_type' => $newClass->getMorphClass(),
                             'indexable_id' => $model[$newClass->getKeyName()],
                             'name' => $name,
